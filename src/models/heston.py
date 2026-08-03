@@ -3,14 +3,29 @@ import matplotlib.pyplot as plt
 import scipy as sp
 
 class HestonModel:
-    def __init__(kappa, theta, sigma, rho, r, q, K, T):
+    def __init__(self, kappa, theta, sigma, rho, r, q, K, T):
+        self.kappa = kappa
+        self.theta = theta
+        self.sigma = sigma
+        self.rho = rho
+        self.r = r
+        self.q = q
+        self.K = K
+        self.T = T
         pass
 
-    def gbm_simulator():
+class GBMSimulator:
+    def heston_gbm_simulator(self, model):
+        self.model = model
         pass
 
 class HestonPDE:
-    def pde_solver():
+    def pde_solver(self, model):
+        self.model = model
+        pass
+
+class HestonOptionSurface:
+    def plot_surface(self):
         pass
 
 def main():
