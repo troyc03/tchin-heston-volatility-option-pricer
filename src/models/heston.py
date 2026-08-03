@@ -36,8 +36,9 @@ def v0_placeholder_check(model):
     return getattr(model, 'v0', 0.04)
 
 class HestonPDE:
-    def pde_solver(self, model):
+    def pde_solver(self, model, option_type='call'):
         self.model = model
+        dt, ds, dv = self.dt, self.ds, self.dv
         pass
 
 class HestonOptionSurface:
