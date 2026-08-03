@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import integrate
+import scipy.integrate as integrate
 
 class HestonModel:
     def __init__(self, kappa, theta, sigma, rho, r, q, K, T):
@@ -15,9 +15,25 @@ class HestonModel:
         pass
 
 class GBMSimulator:
-    def heston_gbm_simulator(self, model):
+    def heston_gbm_simulator(self, model, n_paths=10000, n_steps=252):
         self.model = model
-        pass
+        dt = self.model.T / n_steps
+        S = np.zeros((n_steps + 1, n_paths))
+        v = np.zeros((n_steps + 1, n_paths))
+        S[0], v[0] = self.model.S0, self.model.v0
+
+        for t in range(1, n_steps + 1):
+            z1 = np.random.normal(0, 1, n_paths)
+            z2 = self.model.rho * z1 + np.sqrt(1 - self.model.rho**2) * np.random.normal(0, 1, n_paths)
+            
+            v_prev = np.maximum(v[t-1], 0)
+            v[t] = v[t] + v_prev + self.model.kappa * (self.model.theta - v_prev) * dt + self.model.sigma * np.sqrt(v_prev * dt) * z2
+            v[t] = np.maximum(v[t], 0)
+
+        return S, v
+
+def v0_placeholder_check(model):
+    return getattr(model, 'v0', 0.04)
 
 class HestonPDE:
     def pde_solver(self, model):
