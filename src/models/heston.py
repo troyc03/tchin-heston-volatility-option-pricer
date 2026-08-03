@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy as sp
+from scipy.integrate import integrate
 
 class HestonModel:
     def __init__(self, kappa, theta, sigma, rho, r, q, K, T):
