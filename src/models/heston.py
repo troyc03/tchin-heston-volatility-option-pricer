@@ -36,6 +36,28 @@ def v0_placeholder_check(model):
     return getattr(model, 'v0', 0.04)
 
 class HestonPDE:
+    def __init__(self, model, NS=80, Nv=40, Nt=100):
+        self.model = model
+        self.NS = NS    # Number of stock price steps
+        self.Nv = Nv    # Number of variance steps
+        self.Nt = Nt    # Number of time steps
+        
+        # Grid boundaries
+        self.S_max = 3.0 * model.S0
+        self.v_max = 4.0 * model.theta
+        
+        # Grid spacing
+        self.ds = self.S_max / self.NS
+        self.dv = self.v_max / self.Nv
+        self.dt = model.T / self.Nt
+        
+        # 1D coordinate vectors
+        self.S_vec = np.linspace(0, self.S_max, self.NS + 1)
+        self.v_vec = np.linspace(0, self.v_max, self.Nv + 1)
+        
+        # 2D Grid matrices
+        self.S_grid, self.v_grid = np.meshgrid(self.S_vec, self.v_vec, indexing='ij')
+
     def pde_solver(self, m, option_type='call'):
         m = self.model
         dt, ds, dv = self.dt, self.ds, self.dv
