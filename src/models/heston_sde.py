@@ -39,7 +39,7 @@ for t in range(1, N + 1):
       + np.sqrt(np.maximum(0, v[:, t - 1])) * np.sqrt(dt) * Z1
   )
 
-# Prepare inputs (Time, Current Price, Current Variance) and targets (Next Variance)
+# Prepare training data
 X_data, y_data = [], []
 for i in range(M):
   for t in range(N):
@@ -56,11 +56,11 @@ class HestonSDE_NN(nn.Module):
   def __init__(self):
     super(HestonSDE_NN, self).__init__()
     self.net = nn.Sequential(
-        nn.Linear(3, 32),
+        nn.Linear(3, 64),
         nn.ReLU(),
-        nn.Linear(32, 32),
+        nn.Linear(64, 64),
         nn.ReLU(),
-        nn.Linear(32, 1),
+        nn.Linear(64, 1),
     )
 
   def forward(self, x):
@@ -68,13 +68,11 @@ class HestonSDE_NN(nn.Module):
 
 
 model = HestonSDE_NN()
-criterion = nn.MSELoss()  # Loss function
-optimizer = optim.Adam(model.parameters(), lr=0.01)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.005)
 
 # 3. Train Model
-epochs = 100
-loss_history = []
-
+epochs = 150
 for epoch in range(epochs):
   optimizer.zero_grad()
   predictions = model(X)
@@ -82,16 +80,43 @@ for epoch in range(epochs):
   loss.backward()
   optimizer.step()
 
-  loss_history.append(loss.item())
-  if (epoch + 1) % 10 == 0:
-    print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.6f}")
+# 4. Predict Trajectory for a Single Path
+# We evaluate path index 0 across all time steps
+test_path_idx = 0
+predicted_v = [v0]
 
-# 4. Plot Loss Function
-plt.figure(figsize=(8, 5))
-plt.plot(range(1, epochs + 1), loss_history, label="Training Loss (MSE)", color="b")
-plt.xlabel("Epochs")
-plt.ylabel("Loss Value")
-plt.title("Neural Network Training Loss for Heston Dynamics")
+model.eval()
+with torch.no_grad():
+  for t in range(N):
+    # Input format: [time, price, current variance]
+    input_step = torch.tensor(
+        [[time_grid[t], S[test_path_idx, t], predicted_v[-1]]],
+        dtype=torch.float32,
+    )
+    next_v_pred = model(input_step).item()
+    # Force variance to be non-negative
+    predicted_v.append(max(0.0, next_v_pred))
+
+# 5. Plot Comparison
+plt.figure(figsize=(10, 5))
+plt.plot(
+    time_grid,
+    v[test_path_idx, :],
+    label="Actual Heston Variance (SDE)",
+    color="black",
+    linewidth=2,
+)
+plt.plot(
+    time_grid,
+    predicted_v,
+    label="Neural Network Predicted Variance",
+    color="crimson",
+    linestyle="--",
+    linewidth=2,
+)
+plt.xlabel("Time (T)")
+plt.ylabel("Variance (v)")
+plt.title(f"Trajectory Comparison: Actual vs Predicted Variance (Path {test_path_idx})")
 plt.legend()
 plt.grid(True)
 plt.show()
