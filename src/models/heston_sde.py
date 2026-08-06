@@ -1,18 +1,97 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import scipy.integrate as integrate
-from scipy.integrate import quad
+import numpy as np
+import torch
 import torch.nn as nn
-import torch 
-import torchsde
+import torch.optim as optim
 
-class NeuralSDE(nn.Module):
-    def __init__(self):
-        super().__init__()
-    pass
+# 1. Generate Synthetic Heston Data
+np.random.seed(42)
+S0, v0, kappa, theta, sigma, rho, T, N, M = (
+    100.0,
+    0.04,
+    2.0,
+    0.04,
+    0.3,
+    -0.7,
+    1.0,
+    50,
+    1000,
+)
+dt = T / N
 
-def main():
-    pass
+time_grid = np.linspace(0, T, N + 1)
+S = np.zeros((M, N + 1))
+v = np.zeros((M, N + 1))
+S[:, 0] = S0
+v[:, 0] = v0
 
-if __name__ == '__main__':
-    main()
+for t in range(1, N + 1):
+  Z1 = np.random.normal(0, 1, M)
+  Z2 = rho * Z1 + np.sqrt(1 - rho**2) * np.random.normal(0, 1, M)
+  v[:, t] = np.maximum(
+      0,
+      v[:, t - 1]
+      + kappa * (theta - v[:, t - 1]) * dt
+      + sigma * np.sqrt(np.maximum(0, v[:, t - 1])) * np.sqrt(dt) * Z2,
+  )
+  S[:, t] = S[:, t - 1] * np.exp(
+      -0.5 * v[:, t - 1] * dt
+      + np.sqrt(np.maximum(0, v[:, t - 1])) * np.sqrt(dt) * Z1
+  )
+
+# Prepare inputs (Time, Current Price, Current Variance) and targets (Next Variance)
+X_data, y_data = [], []
+for i in range(M):
+  for t in range(N):
+    X_data.append([time_grid[t], S[i, t], v[i, t]])
+    y_data.append([v[i, t + 1]])
+
+X = torch.tensor(X_data, dtype=torch.float32)
+y = torch.tensor(y_data, dtype=torch.float32)
+
+
+# 2. Define Neural Network
+class HestonSDE_NN(nn.Module):
+
+  def __init__(self):
+    super(HestonSDE_NN, self).__init__()
+    self.net = nn.Sequential(
+        nn.Linear(3, 32),
+        nn.ReLU(),
+        nn.Linear(32, 32),
+        nn.ReLU(),
+        nn.Linear(32, 1),
+    )
+
+  def forward(self, x):
+    return self.net(x)
+
+
+model = HestonSDE_NN()
+criterion = nn.MSELoss()  # Loss function
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+# 3. Train Model
+epochs = 100
+loss_history = []
+
+for epoch in range(epochs):
+  optimizer.zero_grad()
+  predictions = model(X)
+  loss = criterion(predictions, y)
+  loss.backward()
+  optimizer.step()
+
+  loss_history.append(loss.item())
+  if (epoch + 1) % 10 == 0:
+    print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.6f}")
+
+# 4. Plot Loss Function
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, epochs + 1), loss_history, label="Training Loss (MSE)", color="b")
+plt.xlabel("Epochs")
+plt.ylabel("Loss Value")
+plt.title("Neural Network Training Loss for Heston Dynamics")
+plt.legend()
+plt.grid(True)
+plt.show()
